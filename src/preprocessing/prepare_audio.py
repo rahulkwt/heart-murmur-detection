@@ -1,3 +1,2 @@
-# Audio preparation is not implemented yet.
-# Read recording_index.csv and skip rows with split == "excluded".
-# Load recordings as mono and resample to 4 kHz during implementation.
+# Reads and loads each recording from `recording_splits.csv` as mono audio
+# Converts the audio to 4 kHz sample rate 

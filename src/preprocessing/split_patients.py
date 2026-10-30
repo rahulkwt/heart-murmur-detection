@@ -1,58 +1,93 @@
-# Add patient-level splits to the existing indexes for binary classification.
+# Reads the indexes, splits the patients into train, validation, and test sets, and saves the splits to `data/processed` folder.
+# Important to note that the splits are done at the patient level, so all recordings for a given patient will be in the same split.
 
 from pathlib import Path
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data" / "processed"
 
 
 def split_patients():
-    patients = pd.read_csv(DATA_DIR / "patient_index.csv", dtype={"patient_id": str})
-    recordings = pd.read_csv(DATA_DIR / "recording_index.csv", dtype={"patient_id": str})
+    patients = pd.read_csv(
+        DATA_DIR / "patient_index.csv",
+        dtype={"patient_id": str}
+    )
+
+    recordings = pd.read_csv(
+        DATA_DIR / "recording_index.csv",
+        dtype={"patient_id": str}
+    )
 
     if not patients["patient_id"].is_unique:
         raise ValueError("Each patient must appear exactly once.")
-    if not patients["murmur_label"].isin(["Present", "Absent", "Unknown"]).all():
-        raise ValueError("Missing or invalid patient labels.")
-    if not recordings["patient_id"].isin(patients["patient_id"]).all():
-        raise ValueError("Recording has no matching patient.")
-    labels = patients.set_index("patient_id")["murmur_label"]
-    if not recordings["murmur_label"].eq(recordings["patient_id"].map(labels)).all():
-        raise ValueError("Recording and patient labels disagree.")
 
-    known = patients[patients["murmur_label"].isin(["Present", "Absent"])]
+    if not patients["murmur_label"].isin(
+        ["Present", "Absent", "Unknown"]
+    ).all():
+        raise ValueError("Missing or invalid murmur labels.")
+
     train, remaining = train_test_split(
-        known, test_size=0.30, stratify=known["murmur_label"], random_state=42
+        patients,
+        test_size=0.30,
+        stratify=patients["murmur_label"],
+        random_state=42
     )
+
     validation, test = train_test_split(
-        remaining, test_size=0.50,
-        stratify=remaining["murmur_label"], random_state=42
+        remaining,
+        test_size=0.50,
+        stratify=remaining["murmur_label"],
+        random_state=42
     )
 
-    patients["split"] = "excluded"
-    for name, group in [("train", train), ("validation", validation), ("test", test)]:
-        patients.loc[group.index, "split"] = name
+    train = train.assign(split="train")
+    validation = validation.assign(split="validation")
+    test = test.assign(split="test")
 
-    split_lookup = patients.set_index("patient_id")["split"]
-    recordings["split"] = recordings["patient_id"].map(split_lookup)
+    patient_splits = pd.concat(
+        [train, validation, test],
+        ignore_index=True
+    )
 
-    groups = [set(group["patient_id"]) for group in [train, validation, test]]
-    if any(groups[i] & groups[j] for i in range(3) for j in range(i + 1, 3)):
-        raise ValueError("A patient appears in multiple splits.")
-    if recordings["split"].isna().any():
-        raise ValueError("A recording has no split assignment.")
+    recording_splits = recordings.merge(
+        patient_splits[["patient_id", "split"]],
+        on="patient_id",
+        how="left",
+        validate="many_to_one"
+    )
 
-    patients.to_csv(DATA_DIR / "patient_index.csv", index=False)
-    recordings.to_csv(DATA_DIR / "recording_index.csv", index=False)
+    # Check that no patient appears in multiple groups.
+    train_ids = set(train["patient_id"])
+    validation_ids = set(validation["patient_id"])
+    test_ids = set(test["patient_id"])
 
-    print("Patients per split and label:")
-    print(pd.crosstab(patients["split"], patients["murmur_label"]).to_string())
+    assert train_ids.isdisjoint(validation_ids)
+    assert train_ids.isdisjoint(test_ids)
+    assert validation_ids.isdisjoint(test_ids)
+    assert recording_splits["split"].notna().all()
+
+    patient_splits.to_csv(
+        DATA_DIR / "patient_splits.csv", index=False
+    )
+
+    recording_splits.to_csv(
+        DATA_DIR / "recording_splits.csv", index=False
+    )
+
+    print("Patients per split and murmur label:")
+    print(pd.crosstab(
+        patient_splits["split"],
+        patient_splits["murmur_label"]
+    ))
+
     print("\nRecordings per split:")
-    print(recordings["split"].value_counts().to_string())
-    print("\nUpdated patient_index.csv and recording_index.csv")
+    print(recording_splits["split"].value_counts())
+
+    print("\nSaved patient_splits.csv and recording_splits.csv")
 
 
 if __name__ == "__main__":
