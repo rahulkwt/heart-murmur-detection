@@ -35,4 +35,4 @@ pip install -r requirements.txt
 
 ## Dataset
 
-This project uses the [CirCor DigiScope Phonocardiogram Dataset v1.0.3](https://physionet.org/content/circor-heart-sound/1.0.3/). The dataset is **not included** in this repository due to size — download it from PhysioNet and place the raw files in `data/raw/`.
+This project uses the [CirCor DigiScope Phonocardiogram Dataset v1.0.3](https://physionet.org/content/circor-heart-sound/1.0.3/). The dataset is **not included** in this repository due to size — download it from PhysioNet and place the raw `training_data` folder in `data/raw/`.

@@ -6,4 +6,5 @@ tensorflow
 keras
 matplotlib
 seaborn
+soundfile
 jupyter
