@@ -1,5 +1,5 @@
 
-# Feature extraction for heart sound recordings
+"""Feature extraction for heart sound recordings."""
 
 import numpy as np
 import librosa
