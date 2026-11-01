@@ -1,5 +1,8 @@
-# Uses the data in `data/raw/training_data` folder and saves the recording and patient indexes to `data/processed` folder.
-# 
+""" 
+Create indexes for patient and recording data.
+Uses the data in `data/raw/training_data` folder and saves the recording and patient indexes to `data/processed` folder.
+"""
+
 
 from pathlib import Path
 
