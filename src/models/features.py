@@ -5,8 +5,8 @@ Two kinds of features are computed for every audio window:
   1. A fixed-length vector of MFCC summary statistics (for the Random Forest).
   2. A log-Mel spectrogram image of shape (N_MELS, time) (for the CNN).
 
-All feature code lives in this one file. If a teammate later provides their
-own MFCC or log-Mel code, swap the import below and nothing else changes.
+All feature code lives in this one file. To use a different MFCC or log-Mel
+implementation, change the import below; nothing else needs to change.
 """
 
 import numpy as np
