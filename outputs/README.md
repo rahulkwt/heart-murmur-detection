@@ -1,7 +1,7 @@
 # Model outputs (Random Forest and CNN)
 
 Window-level outputs of the two murmur models, for subject-level aggregation
-and evaluation (Sadhana). The models are a Random Forest on MFCC summary
+and evaluation. The models are a Random Forest on MFCC summary
 features and a CNN on log-Mel spectrograms.
 
 ## How to reproduce
@@ -48,10 +48,10 @@ may differ slightly on other hardware.
 - **3 classes:** Present, Absent and Unknown. These come from the subject's
   `#Murmur:` field. `label_mapping.json` gives `{"Present": 0, "Absent": 1, "Unknown": 2}`,
   and the probability columns follow that order.
-- **Note:** teammate commit `d9cf714` changed `prepare_dataset()` to drop Unknown.
-  My code does not edit that file. Instead, `src/models/data_utils.py` calls
-  `preprocess_audio()` and `create_windows()` directly and builds the windows in
-  memory, including Unknown.
+- **Note:** `prepare_dataset()` in `src/preprocessing/audio_preprocessing.py`
+  keeps only Present and Absent. To include Unknown, `src/models/data_utils.py`
+  calls `preprocess_audio()` and `create_windows()` directly and builds the
+  windows in memory. The preprocessing module itself is unchanged.
 - **Split names.** The split is the subject-level split from `split_patients.py`
   (70/15/15, stratified, seed 42). No subject is in more than one split.
   **The CSVs use `train`, `val`, `test`**; the repo's files call the middle split
@@ -94,12 +94,12 @@ uses class weights; validation loss does not.
 
 ### `subject_level_val_check.csv`
 
-This is a **quick diagnostic on the validation split only, not the official
-result.** Each subject's window probabilities are averaged over all its windows
-and locations, and the subject gets the class with the highest average. The
-columns are `model`, `split`, `n_subjects`, `accuracy`, `macro_f1`,
-`f1_present`, `f1_absent` and `f1_unknown`. **Sadhana's evaluation is the
-official subject-level result.** No metric was computed on the test split.
+This is a **quick diagnostic on the validation split only, not the final
+subject-level evaluation.** Each subject's window probabilities are averaged
+over all its windows and locations, and the subject gets the class with the
+highest average. The columns are `model`, `split`, `n_subjects`, `accuracy`,
+`macro_f1`, `f1_present`, `f1_absent` and `f1_unknown`. No metric was computed
+on the test split.
 
 ## Models and tuning
 

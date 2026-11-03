@@ -6,8 +6,8 @@ the subject's windows and recording locations, and pick the class with the
 highest average. Then print macro-F1, accuracy and per-class F1 for the
 Random Forest and the CNN.
 
-This is only a diagnostic. The official subject-level results come from
-Sadhana's evaluation. The test split is never read here.
+This is only a diagnostic, not the final subject-level evaluation. The test
+split is never read here.
 
 Run from the project root (after train_rf.py and train_cnn.py):
     python -m src.models.subject_check
@@ -69,8 +69,8 @@ def main():
     results = pd.DataFrame(rows)
     results.to_csv(OUTPUT_DIR / "subject_level_val_check.csv", index=False)
 
-    print("Subject-level check on the VALIDATION split (diagnostic only;")
-    print("Sadhana's evaluation is the official subject-level result)\n")
+    print("Subject-level check on the VALIDATION split (diagnostic only,")
+    print("not the final subject-level evaluation)\n")
     print(results.round(4).to_string(index=False))
     print(f"\nSaved to {OUTPUT_DIR / 'subject_level_val_check.csv'}")
 
