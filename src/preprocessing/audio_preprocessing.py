@@ -55,11 +55,13 @@ def create_windows(audio, sample_rate, window_seconds=4):
 def prepare_dataset():
     output_dir = ROOT / "data" / "processed"
     recordings = pd.read_csv(
-        output_dir / "recording_index.csv",
+        output_dir / "recording_splits.csv",
         dtype={"patient_id": str}
     )
 
-    recordings = recordings[recordings["split"] != "excluded"]
+    recordings = recordings[
+    recordings["murmur_label"].isin(["Present", "Absent"])
+    ].copy()
     rows = []
 
     for recording_number, (_, recording) in enumerate(recordings.iterrows()):
