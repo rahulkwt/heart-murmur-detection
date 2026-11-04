@@ -16,7 +16,8 @@ Run from the project root (after train_rf.py and train_cnn.py):
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score
 
-from src.models.data_utils import OUTPUT_DIR, LABELS
+from src.models.data_utils import OUTPUT_DIR
+from src.config import LABELS
 
 
 # ---------------------------------------------------------------------------

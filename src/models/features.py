@@ -12,6 +12,8 @@ implementation, change the import below; nothing else needs to change.
 import numpy as np
 import librosa
 
+from src.config import SAMPLE_RATE
+
 # MFCC mean + std (26 values) from the shared project code.
 from src.features.extract_features import extract_mfcc_features
 
@@ -19,8 +21,6 @@ from src.features.extract_features import extract_mfcc_features
 # ---------------------------------------------------------------------------
 # CONFIG: feature settings (change here, then delete the cache to rebuild)
 # ---------------------------------------------------------------------------
-SAMPLE_RATE = 4000      # Hz, all audio is resampled to this in preprocessing
-
 # Random Forest features
 N_MFCC = 13             # number of MFCC coefficients
 RF_N_FFT = 1024         # same frame settings as extract_mfcc_features()

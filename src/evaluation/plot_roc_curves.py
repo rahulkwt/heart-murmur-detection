@@ -7,12 +7,14 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 from sklearn.preprocessing import label_binarize
 
+plt.style.use("dark_background")
+
 ROOT = Path(__file__).resolve().parents[2]
 EVAL_DIR = ROOT / "outputs" / "evaluation"
 FIG_DIR = EVAL_DIR / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-LABELS = ["Present", "Absent", "Unknown"]
+from src.config import LABELS
 PROB_COLS = ["prob_present", "prob_absent", "prob_unknown"]
 
 MODELS = {
@@ -26,7 +28,8 @@ for model_name, filename in MODELS.items():
 
     # Load patient-level test predictions
     df = pd.read_csv(
-        EVAL_DIR / f"{filename}_patient_predictions.csv"
+        EVAL_DIR / f"{filename}_patient_predictions.csv",
+        dtype={"subject_id": str}
     )
 
     y_true = label_binarize(df["true_label"], classes=LABELS)
@@ -62,7 +65,7 @@ for model_name, filename in MODELS.items():
 
         ax.plot(fpr, tpr, label=f"{label} (AUC = {class_auc:.3f})")
 
-    ax.plot([0, 1], [0, 1], "k--", label="Random classifier")
+    ax.plot([0, 1], [0, 1], "w--", label="Random classifier")
 
     ax.set_xlabel("False Positive Rate")
     ax.set_ylabel("True Positive Rate")

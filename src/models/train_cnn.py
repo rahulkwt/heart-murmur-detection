@@ -20,8 +20,9 @@ from tensorflow import keras
 from sklearn.metrics import f1_score
 from sklearn.utils.class_weight import compute_class_weight
 
+from src.config import LABELS
 from src.models.data_utils import (
-    OUTPUT_DIR, SEED, LABELS, set_seeds, load_data, encode_labels,
+    OUTPUT_DIR, SEED, set_seeds, load_data, encode_labels,
     make_predictions_table, save_label_mapping,
 )
 

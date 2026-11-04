@@ -9,6 +9,8 @@ import pandas as pd
 import soundfile as sf
 from scipy.signal import butter, sosfiltfilt, resample_poly
 
+from src.config import LABELS, SAMPLE_RATE, WINDOW_SECONDS, MIN_VALID_SECONDS
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,9 +23,9 @@ def preprocess_audio(file_path):
 
     audio = audio - audio.mean()
 
-    if sample_rate != 4000:
-        audio = resample_poly(audio, 4000, sample_rate)
-        sample_rate = 4000
+    if sample_rate != SAMPLE_RATE:
+        audio = resample_poly(audio, SAMPLE_RATE, sample_rate)
+        sample_rate = SAMPLE_RATE
 
     sos = butter(4, [25, 800], btype="bandpass",
                  fs=sample_rate, output="sos")
@@ -36,7 +38,7 @@ def preprocess_audio(file_path):
     return audio, sample_rate
 
 
-def create_windows(audio, sample_rate, window_seconds=4):
+def create_windows(audio, sample_rate, window_seconds=WINDOW_SECONDS):
     window_size = int(sample_rate * window_seconds)
     windows = []
 
@@ -52,46 +54,49 @@ def create_windows(audio, sample_rate, window_seconds=4):
     return windows
 
 
-def prepare_dataset():
-    output_dir = ROOT / "data" / "processed"
-    recordings = pd.read_csv(
-        output_dir / "recording_splits.csv",
-        dtype={"patient_id": str}
-    )
+def iter_recording_windows(recordings):
+    """Yield processed windows and metadata, keeping all three classes."""
+    if not recordings["murmur_label"].isin(LABELS).all():
+        raise ValueError("Missing or unsupported murmur label")
 
-    recordings = recordings[
-    recordings["murmur_label"].isin(["Present", "Absent"])
-    ].copy()
-    rows = []
-
-    for recording_number, (_, recording) in enumerate(recordings.iterrows()):
+    for _, recording in recordings.iterrows():
         audio, sample_rate = preprocess_audio(ROOT / recording["audio_path"])
-        windows = create_windows(audio, sample_rate)
-
-        folder = output_dir / "windows" / recording["split"]
-        folder.mkdir(parents=True, exist_ok=True)
-
-        for window_number, (window, start, valid_samples) in enumerate(windows):
-            filename = f"recording_{recording_number}_window_{window_number}.wav"
-            window_path = folder / filename
-            sf.write(window_path, window, sample_rate, subtype="FLOAT")
-
-            rows.append({
+        for window_idx, (window, start, valid_samples) in enumerate(
+            create_windows(audio, sample_rate)
+        ):
+            if valid_samples < MIN_VALID_SECONDS * sample_rate:
+                continue
+            metadata = {
                 "patient_id": recording["patient_id"],
                 "recording": recording["recording"],
                 "location": recording["location"],
                 "murmur_label": recording["murmur_label"],
                 "split": recording["split"],
+                "window_idx": window_idx,
                 "start_seconds": start / sample_rate,
                 "valid_samples": valid_samples,
-                "audio_path": window_path.relative_to(ROOT).as_posix()
-            })
+            }
+            yield window, sample_rate, metadata
 
-    window_index = pd.DataFrame(rows)
-    window_index.to_csv(output_dir / "window_index.csv", index=False)
 
+def prepare_dataset():
+    output_dir = ROOT / "data" / "processed"
+    recordings = pd.read_csv(
+        output_dir / "recording_splits.csv", dtype={"patient_id": str}
+    )
+    rows = []
+    for window, sample_rate, metadata in iter_recording_windows(recordings):
+        folder = output_dir / "windows" / metadata["split"]
+        folder.mkdir(parents=True, exist_ok=True)
+        recording_id = Path(metadata["recording"]).stem
+        filename = f"{metadata['patient_id']}_{recording_id}_{metadata['window_idx']}.wav"
+        window_path = folder / filename
+        sf.write(window_path, window, sample_rate, subtype="FLOAT")
+        rows.append({**metadata, "audio_path": window_path.relative_to(ROOT).as_posix()})
+
+    pd.DataFrame(rows).to_csv(output_dir / "window_index.csv", index=False)
     print("Recordings processed:", len(recordings))
-    print("Windows saved:", len(window_index))
+    print("Windows saved:", len(rows))
 
 
 if __name__ == "__main__":

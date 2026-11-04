@@ -14,7 +14,10 @@ OUTPUT_DIR = ROOT / "outputs"
 EVAL_DIR = OUTPUT_DIR / "evaluation"
 EVAL_DIR.mkdir(parents=True, exist_ok=True)
 
-LABELS = ["Present", "Absent", "Unknown"]
+from src.config import LABELS
+from src.evaluation.aggregate_patients import aggregate_patients, validate_windows
+
+AGGREGATION_METHOD = "recording_mean"
 
 
 def evaluate_model(model_name, filename):
@@ -79,26 +82,9 @@ def evaluate_patient_level(model_name, filename):
         dtype={"subject_id": str}
     )
 
-    # Use only the test set
+    validate_windows(df)
     test = df[df["split"] == "test"].copy()
-
-    # Average probabilities for each patient
-    prob_cols = [
-        "prob_present",
-        "prob_absent",
-        "prob_unknown"
-    ]
-
-    patients = test.groupby("subject_id").agg({
-        "true_label": "first",
-        **{col: "mean" for col in prob_cols}
-    }).reset_index()
-
-    # Choose the highest-probability class
-    patients["pred_label"] = [
-        LABELS[i]
-        for i in patients[prob_cols].to_numpy().argmax(axis=1)
-    ]
+    patients = aggregate_patients(test, AGGREGATION_METHOD)
 
     # Calculate evaluation metrics
     y_true = patients["true_label"]
@@ -144,6 +130,7 @@ def evaluate_patient_level(model_name, filename):
 
     return {
         "Model": model_name,
+        "Aggregation": AGGREGATION_METHOD,
         "Accuracy": accuracy,
         "Precision": precision,
         "Recall": recall,

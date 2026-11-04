@@ -18,6 +18,8 @@ import pandas as pd
 
 from src.models.data_utils import OUTPUT_DIR
 
+plt.style.use("dark_background")
+
 
 # ---------------------------------------------------------------------------
 # CONFIG: file locations and colors
@@ -25,14 +27,14 @@ from src.models.data_utils import OUTPUT_DIR
 FIGURE_DIR = OUTPUT_DIR / "figures"
 TRAIN_COLOR = "#2a78d6"     # blue
 VAL_COLOR = "#eb6834"       # orange
-TEXT_COLOR = "#52514e"      # gray for labels and the best-epoch marker
-GRID_COLOR = "#e4e3df"
+TEXT_COLOR = "#d9d9d9"      # light gray for labels and the best-epoch marker
+GRID_COLOR = "#444444"
 DPI = 200
 
 
-# Shared clean style: light grid, no top/right borders, gray text.
+# Shared clean style: muted grid, no top/right borders, light gray text.
 def style_axes(ax, title, xlabel, ylabel):
-    ax.set_title(title, loc="left", fontsize=12, color="#0b0b0b")
+    ax.set_title(title, loc="left", fontsize=12, color=TEXT_COLOR)
     ax.set_xlabel(xlabel, color=TEXT_COLOR)
     ax.set_ylabel(ylabel, color=TEXT_COLOR)
     ax.grid(True, color=GRID_COLOR, linewidth=0.8)

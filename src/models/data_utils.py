@@ -21,7 +21,8 @@ import numpy as np
 import pandas as pd
 
 # Reuse the project's preprocessing (resample, band-pass, normalize, window)
-from src.preprocessing.audio_preprocessing import preprocess_audio, create_windows
+from src.preprocessing.audio_preprocessing import iter_recording_windows
+from src.config import LABELS, LABEL_TO_INDEX, WINDOW_SECONDS, MIN_VALID_SECONDS
 from src.models import features
 
 
@@ -33,14 +34,7 @@ SPLITS_CSV = ROOT / "data" / "processed" / "recording_splits.csv"
 CACHE_DIR = ROOT / "data" / "processed" / "model_cache"
 OUTPUT_DIR = ROOT / "outputs"
 
-WINDOW_SECONDS = 4          # same window length as the preprocessing code
-MIN_VALID_SECONDS = 1.0     # drop windows with less real audio than this
-SEED = 42                   # random seed for reproducible results
-
-# Class order used everywhere: index 0 = Present, 1 = Absent, 2 = Unknown.
-# The probability columns in the output files follow this order.
-LABELS = ["Present", "Absent", "Unknown"]
-LABEL_TO_INDEX = {label: i for i, label in enumerate(LABELS)}
+SEED = 42
 
 # The repo calls the validation split "validation"; outputs use "val"
 SPLIT_NAMES = {"train": "train", "validation": "val", "test": "test"}
@@ -60,45 +54,28 @@ def build_features():
     print(f"Building features for {len(recordings)} recordings...")
 
     rows, rf_features, log_mels = [], [], []
-    dropped = 0
+    for window, sample_rate, metadata in iter_recording_windows(recordings):
+        valid_samples = metadata["valid_samples"]
+        rf_features.append(features.extract_rf_features(window[:valid_samples], sample_rate))
+        log_mels.append(features.extract_log_mel(window, sample_rate))
+        rows.append({
+            "subject_id": metadata["patient_id"],
+            "recording_id": Path(metadata["recording"]).stem,
+            "location": metadata["location"],
+            "window_idx": metadata["window_idx"],
+            "start_seconds": metadata["start_seconds"],
+            "valid_seconds": valid_samples / sample_rate,
+            "split": SPLIT_NAMES[metadata["split"]],
+            "true_label": metadata["murmur_label"],
+        })
 
-    for number, (_, recording) in enumerate(recordings.iterrows(), start=1):
-        # Same preprocessing as the rest of the project
-        audio, sample_rate = preprocess_audio(ROOT / recording["audio_path"])
-        windows = create_windows(audio, sample_rate, WINDOW_SECONDS)
-
-        for window_idx, (window, start, valid_samples) in enumerate(windows):
-            # Skip end-of-recording windows that are almost all zero padding
-            if valid_samples < MIN_VALID_SECONDS * sample_rate:
-                dropped += 1
-                continue
-
-            # RF statistics use only the real audio; the CNN needs the
-            # full fixed-length window so every image has the same shape
-            rf_features.append(features.extract_rf_features(window[:valid_samples], sample_rate))
-            log_mels.append(features.extract_log_mel(window, sample_rate))
-
-            rows.append({
-                "subject_id": recording["patient_id"],
-                "recording_id": Path(recording["recording"]).stem,
-                "location": recording["location"],
-                "window_idx": window_idx,
-                "start_seconds": start / sample_rate,
-                "valid_seconds": valid_samples / sample_rate,
-                "split": SPLIT_NAMES[recording["split"]],
-                "true_label": recording["murmur_label"],
-            })
-
-        if number % 250 == 0 or number == len(recordings):
-            print(f"  {number}/{len(recordings)} recordings, {len(rows)} windows")
-
-    print(f"Dropped {dropped} windows with < {MIN_VALID_SECONDS} s of real audio")
     return pd.DataFrame(rows), np.stack(rf_features), np.stack(log_mels)
 
 
 # Settings that change which windows exist or what their features are.
 def cache_settings():
     return {
+        "labels": LABELS,
         "window_seconds": WINDOW_SECONDS,
         "min_valid_seconds": MIN_VALID_SECONDS,
         "features": features.feature_settings(),

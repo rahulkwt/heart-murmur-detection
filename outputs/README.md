@@ -48,10 +48,10 @@ may differ slightly on other hardware.
 - **3 classes:** Present, Absent and Unknown. These come from the subject's
   `#Murmur:` field. `label_mapping.json` gives `{"Present": 0, "Absent": 1, "Unknown": 2}`,
   and the probability columns follow that order.
-- **Note:** `prepare_dataset()` in `src/preprocessing/audio_preprocessing.py`
-  keeps only Present and Absent. To include Unknown, `src/models/data_utils.py`
-  calls `preprocess_audio()` and `create_windows()` directly and builds the
-  windows in memory. The preprocessing module itself is unchanged.
+- **Shared preprocessing:** `prepare_dataset()` and model feature extraction
+  both use `iter_recording_windows()` in `audio_preprocessing.py`. Both keep
+  all three classes and drop windows with less than 1 second of real audio.
+  Labels and window settings are defined in `src/config.py`.
 - **Split names.** The split is the subject-level split from `split_patients.py`
   (70/15/15, stratified, seed 42). No subject is in more than one split.
   **The CSVs use `train`, `val`, `test`**; the repo's files call the middle split
@@ -98,8 +98,7 @@ This is a **quick diagnostic on the validation split only, not the final
 subject-level evaluation.** Each subject's window probabilities are averaged
 over all its windows and locations, and the subject gets the class with the
 highest average. The columns are `model`, `split`, `n_subjects`, `accuracy`,
-`macro_f1`, `f1_present`, `f1_absent` and `f1_unknown`. No metric was computed
-on the test split.
+`macro_f1`, `f1_present`, `f1_absent` and `f1_unknown`. Final test metrics are saved separately in `evaluation/`.
 
 ## Models and tuning
 
@@ -120,8 +119,7 @@ on the test split.
     filters and dropout from a base. The best was chosen by validation macro-F1.
   - **Early stopping:** on `val_loss` with **patience 6**, restoring the best
     epoch's weights.
-- **Test set:** used only to write the final predictions. Never used for
-  tuning, early stopping or any metric here.
+- **Test set:** used for final evaluation only, never for tuning or early stopping.
 
 ## Known limitations
 
@@ -134,3 +132,23 @@ on the test split.
   no error bars.
 - **Train predictions are optimistic.** The train-split predictions come from
   models fit on those windows. Use val and test for evaluation.
+
+## Patient-level evaluation
+
+The final evaluation averages windows within each recording, then gives
+recordings equal weight per patient (`recording_mean`). This was chosen
+from the validation comparison in `patient_aggregation/`.
+
+Run from the project root:
+
+```bash
+python -m src.evaluation.aggregate_patients
+python -m src.evaluation.evaluate_models
+python -m src.evaluation.plot_confusion_matrices
+python -m src.evaluation.plot_roc_curves
+python -m src.evaluation.plot_model_comparison
+```
+
+Patient test predictions, metrics and figures are saved in `evaluation/`.
+These replace the earlier results that averaged all windows directly.
+Models and window predictions have not been retrained or changed.

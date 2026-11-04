@@ -4,12 +4,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
+plt.style.use("dark_background")
+
 ROOT = Path(__file__).resolve().parents[2]
 EVAL_DIR = ROOT / "outputs" / "evaluation"
 FIG_DIR = EVAL_DIR / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-LABELS = ["Present", "Absent", "Unknown"]
+from src.config import LABELS
 
 models = {
     "Random Forest": "Random_Forest",
@@ -20,7 +22,8 @@ for model_name, filename in models.items():
 
     # Load patient-level predictions
     df = pd.read_csv(
-        EVAL_DIR / f"{filename}_patient_predictions.csv"
+        EVAL_DIR / f"{filename}_patient_predictions.csv",
+        dtype={"subject_id": str}
     )
 
     # Calculate confusion matrix

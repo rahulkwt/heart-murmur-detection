@@ -1,6 +1,7 @@
-# Reads the indexes, splits the patients into train, validation, and test sets, and saves the splits to `data/processed` folder.
-# Important to note that the splits are done at the patient level, so all recordings for a given patient will be in the same split.
-
+"""
+Reads the indexes, splits the patients into train, validation, and test sets, and saves the splits to `data/processed` folder.
+Important to note that the splits are done at the patient level, so all recordings for a given patient will be in the same split.
+"""
 from pathlib import Path
 
 import pandas as pd
