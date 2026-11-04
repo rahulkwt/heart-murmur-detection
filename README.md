@@ -99,7 +99,7 @@ validation data. Final test evaluation uses equal recording weights; see
 
 ## Notebooks and report figures
 
-After running the pipeline, execute the three notebooks in order to refresh
+After running the pipeline, execute the first three notebooks in order to refresh
 their saved outputs and generate figures in `reports/figures/`:
 
 ```bash
@@ -112,3 +112,13 @@ The notebooks cover dataset exploration, audio exploration and model
 exploration, respectively. The model notebook reads the saved models and
 predictions without retraining and saves all eight of its figures in
 `reports/figures/`.
+
+All six notebooks save their plots under `reports/figures/`, including each audio
+preprocessing example and the noise augmentation, transfer learning, and
+additional model analysis charts.
+Notebook 06 groups its figures in `reports/figures/additional_analysis/`.
+It also saves Logistic Regression predictions and refreshes `patient_roc_curves.png`
+with all three models. Notebook 03 reuses these predictions on subsequent runs.
+It also saves `rf_vs_logistic_regression_roc_curves.png` with class and macro AUCs.
+Notebook 05 saves `cnn_vs_transfer_learning_roc_curves.png` for the original CNN
+and YAMNet transfer model, using the same held-out test patients.
