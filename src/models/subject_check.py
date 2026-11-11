@@ -20,9 +20,6 @@ from src.models.data_utils import OUTPUT_DIR
 from src.config import LABELS
 
 
-# ---------------------------------------------------------------------------
-# CONFIG
-# ---------------------------------------------------------------------------
 MODELS = {
     "Random Forest": OUTPUT_DIR / "rf_window_predictions.csv",
     "CNN": OUTPUT_DIR / "cnn_window_predictions.csv",

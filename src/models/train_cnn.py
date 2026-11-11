@@ -27,9 +27,6 @@ from src.models.data_utils import (
 )
 
 
-# ---------------------------------------------------------------------------
-# CONFIG: training settings and the small hyperparameter search
-# ---------------------------------------------------------------------------
 MAX_EPOCHS = 40         # upper limit; early stopping usually ends sooner
 PATIENCE = 6            # stop after this many epochs without val_loss improving
 
@@ -108,8 +105,6 @@ def main():
     set_all_seeds()
     print("GPUs found:", tf.config.list_physical_devices("GPU") or "none (using CPU)")
 
-    # Step 1: load the windows and their log-Mel spectrograms,
-    # adding a channel axis -> (n_windows, n_mels, time, 1)
     windows, _, log_mels = load_data()
     x_all = log_mels[..., np.newaxis]
     labels = encode_labels(windows["true_label"])
@@ -118,12 +113,10 @@ def main():
     x_train, y_train = x_all[is_train], labels[is_train]
     x_val, y_val = x_all[is_val], labels[is_val]
 
-    # Step 2: class weights so the rare classes count as much as Absent
     weights = compute_class_weight("balanced", classes=np.arange(len(LABELS)), y=y_train)
     class_weight = dict(enumerate(weights))
     print("Class weights:", {LABELS[i]: round(float(w), 2) for i, w in class_weight.items()})
 
-    # Step 3: try each setting, keep the one with the best validation macro-F1
     results, all_histories = [], []
     best_model, best_history, best_f1 = None, None, -1.0
 
@@ -150,12 +143,10 @@ def main():
     results = pd.DataFrame(results)
     best = results.loc[results["val_macro_f1"].idxmax()]
 
-    # Step 4: predict every window (train, val and test) with the best model
     print("\nWriting predictions for all splits...")
     probabilities = best_model.predict(x_all, batch_size=256, verbose=0)
     predictions = make_predictions_table(windows, probabilities)
 
-    # Step 5: save outputs for evaluation
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     predictions.to_csv(OUTPUT_DIR / "cnn_window_predictions.csv", index=False)
     best_history[["epoch", "loss", "val_loss", "accuracy", "val_accuracy"]].to_csv(

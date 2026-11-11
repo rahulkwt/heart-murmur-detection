@@ -21,9 +21,6 @@ from src.models.data_utils import OUTPUT_DIR
 plt.style.use("dark_background")
 
 
-# ---------------------------------------------------------------------------
-# CONFIG: file locations and colors
-# ---------------------------------------------------------------------------
 FIGURE_DIR = OUTPUT_DIR / "figures"
 TRAIN_COLOR = "#2a78d6"     # blue
 VAL_COLOR = "#eb6834"       # orange

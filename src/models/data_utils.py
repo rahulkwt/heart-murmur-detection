@@ -26,9 +26,6 @@ from src.config import LABELS, LABEL_TO_INDEX, WINDOW_SECONDS, MIN_VALID_SECONDS
 from src.models import features
 
 
-# ---------------------------------------------------------------------------
-# CONFIG: paths, windows, labels and seed shared by both models
-# ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[2]
 SPLITS_CSV = ROOT / "data" / "processed" / "recording_splits.csv"
 CACHE_DIR = ROOT / "data" / "processed" / "model_cache"

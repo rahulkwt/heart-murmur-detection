@@ -5,8 +5,7 @@ Two kinds of features are computed for every audio window:
   1. A fixed-length vector of MFCC summary statistics (for the Random Forest).
   2. A log-Mel spectrogram image of shape (N_MELS, time) (for the CNN).
 
-All feature code lives in this one file. To use a different MFCC or log-Mel
-implementation, change the import below; nothing else needs to change.
+MFCCs are computed once per window and reused for the delta statistics.
 """
 
 import numpy as np
@@ -14,13 +13,6 @@ import librosa
 
 from src.config import SAMPLE_RATE
 
-# MFCC mean + std (26 values) from the shared project code.
-from src.features.extract_features import extract_mfcc_features
-
-
-# ---------------------------------------------------------------------------
-# CONFIG: feature settings (change here, then delete the cache to rebuild)
-# ---------------------------------------------------------------------------
 # Random Forest features
 N_MFCC = 13             # number of MFCC coefficients
 RF_N_FFT = 1024         # same frame settings as extract_mfcc_features()
@@ -52,15 +44,13 @@ RF_FEATURE_NAMES = (
 def extract_rf_features(audio, sample_rate=SAMPLE_RATE):
     audio = np.asarray(audio, dtype=np.float32)
 
-    # 26 values: mean and std of 13 MFCCs over time (shared project code)
-    mfcc_stats = extract_mfcc_features(audio, sample_rate, n_mfcc=N_MFCC)
-
     # Delta MFCCs describe how the spectrum changes from frame to frame,
     # which helps capture the timing of heart sounds and murmurs
     mfccs = librosa.feature.mfcc(
         y=audio, sr=sample_rate, n_mfcc=N_MFCC,
         n_fft=RF_N_FFT, hop_length=RF_HOP_LENGTH
     )
+    mfcc_stats = np.concatenate([mfccs.mean(axis=1), mfccs.std(axis=1)])
     deltas = librosa.feature.delta(mfccs)
     delta_stats = np.concatenate([deltas.mean(axis=1), deltas.std(axis=1)])
 
