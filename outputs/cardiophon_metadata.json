@@ -1,0 +1,17 @@
+{
+  "frontend_normalization": {
+    "mean": -10.871324921694804,
+    "std": 4.899950174151639,
+    "revision": "a3bf9709"
+  },
+  "labels": [
+    "Present",
+    "Absent",
+    "Unknown"
+  ],
+  "seed": 42,
+  "window_seconds": 4,
+  "quality_filtering": false,
+  "demographics": false,
+  "head": "Normalization-Dense64-Dropout0.3-Dense3"
+}

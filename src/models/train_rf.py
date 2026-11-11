@@ -22,9 +22,6 @@ from src.models.data_utils import (
 )
 
 
-# ---------------------------------------------------------------------------
-# CONFIG: hyperparameter grid (every combination is tried)
-# ---------------------------------------------------------------------------
 PARAM_GRID = {
     "n_estimators": [200, 500],
     "max_depth": [10, None],
@@ -77,13 +74,11 @@ def tune_forest(x_train, y_train, x_val, y_val):
 def main():
     set_seeds()
 
-    # Step 1: load the windows and their RF features
     windows, rf_features, _ = load_data()
     labels = encode_labels(windows["true_label"])
     is_train = (windows["split"] == "train").to_numpy()
     is_val = (windows["split"] == "val").to_numpy()
 
-    # Step 2: tune on train -> validation (the test set is not touched here)
     print("\nTuning Random Forest on the validation set...")
     model, results = tune_forest(
         rf_features[is_train], labels[is_train],
@@ -91,12 +86,10 @@ def main():
     )
     best = results.loc[results["val_macro_f1"].idxmax()]
 
-    # Step 3: predict every window (train, val and test) with the best model
     print("\nWriting predictions for all splits...")
     probabilities = model.predict_proba(rf_features)
     predictions = make_predictions_table(windows, probabilities)
 
-    # Step 4: save outputs for evaluation
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     predictions.to_csv(OUTPUT_DIR / "rf_window_predictions.csv", index=False)
     results.to_csv(OUTPUT_DIR / "rf_tuning_results.csv", index=False)
