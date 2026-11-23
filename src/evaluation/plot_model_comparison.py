@@ -4,16 +4,17 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from src.paths import FIGURES_DIR, METRICS_DIR
 
-EVAL_DIR = Path(__file__).resolve().parents[2] / "outputs/evaluation"
-FIG_DIR = EVAL_DIR / "figures"
+FIG_DIR = FIGURES_DIR / "evaluation"
 
 
 def main():
+    """Plot the saved patient-level model comparison."""
     plt.style.use("dark_background")
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    comparison = pd.read_csv(EVAL_DIR / "patient_model_comparison.csv")
-    roc = pd.read_csv(EVAL_DIR / "roc_auc_comparison.csv")
+    comparison = pd.read_csv(METRICS_DIR / "patient_model_comparison.csv")
+    roc = pd.read_csv(METRICS_DIR / "roc_auc_comparison.csv")
     roc["Model"] = roc["Model"].replace({"Random Forest": "Random_Forest"})
     scores = comparison.merge(roc, on="Model", validate="one_to_one")
     scores["Model"] = scores["Model"].str.replace("_", " ")

@@ -27,7 +27,6 @@ def load_encoder(asset_dir):
     """Download the pinned official encoder and load its weights strictly."""
     import torch
 
-    # Small four-second inputs are faster without intra-op thread overhead.
     torch.set_num_threads(1)
     asset_dir = Path(asset_dir)
     asset_dir.mkdir(parents=True, exist_ok=True)
@@ -76,6 +75,7 @@ def extract_embeddings(recordings, asset_dir, reference):
     ).eval()
 
     def log_mel(window, rate):
+        """Convert one audio window into a normalized log-Mel tensor."""
         if rate != 4000:
             raise ValueError(f"CardioPHON expects the project's 4 kHz windows, got {rate}")
         audio = torch.as_tensor(window, dtype=torch.float32).unsqueeze(0)
@@ -107,7 +107,10 @@ def extract_embeddings(recordings, asset_dir, reference):
             "recording_id": Path(meta["recording"]).stem,
             "location": meta["location"], "window_idx": meta["window_idx"],
             "split": SPLIT_NAMES[meta["split"]],
-            "true_label": meta["murmur_label"],
+            "patient_label": meta["patient_label"],
+            "recording_label": meta["recording_label"],
+            "training_label": meta["patient_label"],
+            "true_label": meta["patient_label"],
         })
         if i % 1000 == 0:
             print(f"CardioPHON: extracted {i:,} windows")

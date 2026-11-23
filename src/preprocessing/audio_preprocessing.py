@@ -9,13 +9,14 @@ import pandas as pd
 import soundfile as sf
 from scipy.signal import butter, sosfiltfilt, resample_poly
 
-from src.config import LABELS, SAMPLE_RATE, WINDOW_SECONDS, MIN_VALID_SECONDS
+from src.config import SAMPLE_RATE, WINDOW_SECONDS, MIN_VALID_SECONDS
 
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def preprocess_audio(file_path):
+    """Load, resample, filter, center, and normalize one recording."""
     audio, sample_rate = sf.read(file_path)
 
     if audio.ndim > 1:
@@ -39,6 +40,7 @@ def preprocess_audio(file_path):
 
 
 def create_windows(audio, sample_rate, window_seconds=WINDOW_SECONDS):
+    """Split audio into fixed-length windows and record valid sample counts."""
     window_size = int(sample_rate * window_seconds)
     windows = []
 
@@ -55,9 +57,11 @@ def create_windows(audio, sample_rate, window_seconds=WINDOW_SECONDS):
 
 
 def iter_recording_windows(recordings):
-    """Yield processed windows and metadata, keeping all three classes."""
-    if not recordings["murmur_label"].isin(LABELS).all():
-        raise ValueError("Missing or unsupported murmur label")
+    """Yield processed windows with patient and recording labels."""
+    label_column = "patient_label" if "patient_label" in recordings else "murmur_label"
+    if "recording_label" not in recordings:
+        recordings = recordings.copy()
+        recordings["recording_label"] = recordings[label_column]
 
     for _, recording in recordings.iterrows():
         audio, sample_rate = preprocess_audio(ROOT / recording["audio_path"])
@@ -70,7 +74,10 @@ def iter_recording_windows(recordings):
                 "patient_id": recording["patient_id"],
                 "recording": recording["recording"],
                 "location": recording["location"],
-                "murmur_label": recording["murmur_label"],
+                "patient_label": recording[label_column],
+                "recording_label": recording["recording_label"],
+                "murmur_label": recording[label_column],
+                "murmur_locations": recording.get("murmur_locations", ""),
                 "split": recording["split"],
                 "window_idx": window_idx,
                 "start_seconds": start / sample_rate,
@@ -80,6 +87,7 @@ def iter_recording_windows(recordings):
 
 
 def prepare_dataset():
+    """Write processed audio windows and their metadata index."""
     output_dir = ROOT / "data" / "processed"
     recordings = pd.read_csv(
         output_dir / "recording_splits.csv", dtype={"patient_id": str}

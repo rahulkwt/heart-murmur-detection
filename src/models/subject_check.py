@@ -1,36 +1,22 @@
-"""
-Quick subject-level sanity check on the VALIDATION split only.
-
-For each validation subject, average the window probabilities over all of
-the subject's windows and recording locations, and pick the class with the
-highest average. Then print macro-F1, accuracy and per-class F1 for the
-Random Forest and the CNN.
-
-This is only a diagnostic, not the final subject-level evaluation. The test
-split is never read here.
-
-Run from the project root (after train_rf.py and train_cnn.py):
-    python -m src.models.subject_check
-"""
+"""Calculate a validation-only subject-level diagnostic."""
 
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score
 
-from src.models.data_utils import OUTPUT_DIR
 from src.config import LABELS
+from src.paths import METRICS_DIR, PREDICTIONS_DIR
 
 
 MODELS = {
-    "Random Forest": OUTPUT_DIR / "rf_window_predictions.csv",
-    "CNN": OUTPUT_DIR / "cnn_window_predictions.csv",
+    "Random Forest": PREDICTIONS_DIR / "random_forest_windows.csv",
+    "CNN": PREDICTIONS_DIR / "cnn_windows.csv",
 }
-SPLIT = "val"   # validation only; do not change this to "test"
+SPLIT = "val"
 PROB_COLUMNS = [f"prob_{label.lower()}" for label in LABELS]
 
 
-# Average each subject's window probabilities and pick the most likely class.
-# Returns one row per subject with its true and predicted label.
 def subject_predictions(windows):
+    """Average window probabilities and choose one class per subject."""
     subjects = windows.groupby("subject_id").agg(
         true_label=("true_label", "first"),
         **{column: (column, "mean") for column in PROB_COLUMNS},
@@ -40,8 +26,8 @@ def subject_predictions(windows):
     return subjects
 
 
-# Compute accuracy, macro-F1 and per-class F1 from subject-level predictions.
 def subject_metrics(subjects):
+    """Calculate subject-level accuracy and F1 scores."""
     per_class = f1_score(subjects["true_label"], subjects["pred_label"],
                          labels=LABELS, average=None, zero_division=0)
     return {
@@ -53,24 +39,25 @@ def subject_metrics(subjects):
 
 
 def main():
+    """Write and print the validation subject-level comparison."""
     rows = []
     for model_name, path in MODELS.items():
         windows = pd.read_csv(path, dtype={"subject_id": str})
         windows = windows[windows["split"] == SPLIT]
 
-        # Each subject must belong to one split with one label
         assert (windows.groupby("subject_id")["true_label"].nunique() == 1).all()
 
         metrics = subject_metrics(subject_predictions(windows))
         rows.append({"model": model_name, "split": SPLIT, **metrics})
 
     results = pd.DataFrame(rows)
-    results.to_csv(OUTPUT_DIR / "subject_level_val_check.csv", index=False)
+    METRICS_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_csv(METRICS_DIR / "subject_level_val_check.csv", index=False)
 
     print("Subject-level check on the VALIDATION split (diagnostic only,")
     print("not the final subject-level evaluation)\n")
     print(results.round(4).to_string(index=False))
-    print(f"\nSaved to {OUTPUT_DIR / 'subject_level_val_check.csv'}")
+    print(f"\nSaved to {METRICS_DIR / 'subject_level_val_check.csv'}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,19 @@
+[
+  {
+    "n_subjects":142,
+    "accuracy":0.8450704225,
+    "macro_f1":0.7258843891,
+    "precision_present":0.8888888889,
+    "recall_present":0.5925925926,
+    "f1_present":0.7111111111,
+    "support_present":27,
+    "precision_absent":0.8899082569,
+    "recall_absent":0.9238095238,
+    "f1_absent":0.9065420561,
+    "support_absent":105,
+    "precision_unknown":0.4666666667,
+    "recall_unknown":0.7,
+    "f1_unknown":0.56,
+    "support_unknown":10
+  }
+]

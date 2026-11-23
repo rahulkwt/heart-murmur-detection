@@ -1,7 +1,4 @@
-"""Compare patient aggregation on validation data, without retraining models.
-
-Run from the project root: python -m src.evaluation.aggregate_patients
-"""
+"""Aggregate saved window predictions at patient level."""
 
 from pathlib import Path
 
@@ -10,9 +7,9 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 from src.config import LABELS
+from src.paths import METRICS_DIR, PREDICTIONS_DIR
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "outputs"
 PROBS = [f"prob_{label.lower()}" for label in LABELS]
 KEYS = ["subject_id", "recording_id", "window_idx"]
 
@@ -63,29 +60,36 @@ def aggregate_patients(windows, method):
 
 
 def metrics(patients):
+    """Calculate accuracy, macro-F1, and per-class scores."""
     precision, recall, f1, support = precision_recall_fscore_support(
         patients["true_label"], patients["pred_label"], labels=LABELS, zero_division=0
     )
-    result = {"n_subjects": len(patients),
-              "accuracy": accuracy_score(patients["true_label"], patients["pred_label"]),
-              "macro_f1": f1.mean()}
-    for index, label in enumerate(LABELS):
-        for name, values in [("precision", precision), ("recall", recall),
-                             ("f1", f1), ("support", support)]:
-            result[f"{name}_{label.lower()}"] = values[index]
+    result = {
+        "n_subjects": len(patients),
+        "accuracy": accuracy_score(patients["true_label"], patients["pred_label"]),
+        "macro_f1": f1.mean(),
+    }
+    for label, p, r, score, count in zip(LABELS, precision, recall, f1, support):
+        name = label.lower()
+        result.update({
+            f"precision_{name}": p,
+            f"recall_{name}": r,
+            f"f1_{name}": score,
+            f"support_{name}": count,
+        })
     return result
 
 
 def main():
-    destination = OUTPUT / "patient_aggregation"
-    destination.mkdir(parents=True, exist_ok=True)
+    """Write validation patient predictions and summary scores."""
+    METRICS_DIR.mkdir(parents=True, exist_ok=True)
     summaries = []
     reference = None
     for model in ["rf", "cnn"]:
-        windows = pd.read_csv(OUTPUT / f"{model}_window_predictions.csv",
+        filename = "random_forest_windows.csv" if model == "rf" else "cnn_windows.csv"
+        windows = pd.read_csv(PREDICTIONS_DIR / filename,
                               dtype={"subject_id": str, "recording_id": str})
         validate_windows(windows)
-        # Inspect identities across splits for integrity; evaluate validation only.
         identities = windows[KEYS + ["split", "true_label"]].sort_values(KEYS).reset_index(drop=True)
         if reference is not None and not identities.equals(reference):
             raise ValueError("Models do not have identical windows, labels and splits")
@@ -95,14 +99,14 @@ def main():
             raise ValueError("No validation windows")
         for method in ["window_mean", "recording_mean"]:
             patients = aggregate_patients(validation, method)
-            patients.to_csv(destination / f"{model}_{method}_val_patients.csv", index=False)
+            patients.to_csv(METRICS_DIR / f"{model}_{method}_val_patients.csv", index=False)
             summaries.append({"model": model, "method": method, "split": "val",
                               **metrics(patients)})
     summary = pd.DataFrame(summaries)
-    summary.to_csv(destination / "validation_comparison.csv", index=False)
+    summary.to_csv(METRICS_DIR / "validation_comparison.csv", index=False)
     print(summary[["model", "method", "n_subjects", "accuracy", "macro_f1",
                    "recall_present", "f1_unknown"]].round(4).to_string(index=False))
-    print(f"\nSaved validation patient predictions and comparison to {destination}")
+    print(f"\nSaved validation patient predictions and comparison to {METRICS_DIR}")
 
 
 if __name__ == "__main__":
