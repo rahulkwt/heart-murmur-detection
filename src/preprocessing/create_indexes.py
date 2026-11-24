@@ -1,7 +1,4 @@
-""" 
-Create indexes for patient and recording data.
-Uses the data in `data/raw/training_data` folder and saves the recording and patient indexes to `data/processed` folder.
-"""
+"""Create patient and recording indexes from the raw dataset."""
 
 
 from pathlib import Path
@@ -15,39 +12,57 @@ DATA_DIR = ROOT / "data" / "raw" / "training_data"
 OUTPUT_DIR = ROOT / "data" / "processed"
 
 
-def create_indexes():
-    if not DATA_DIR.exists():
-        raise FileNotFoundError(f"Dataset folder not found: {DATA_DIR}")
+def normalize_location(value):
+    """Normalize the dataset's four valve locations and phonocardiogram lead."""
+    value = value.strip()
+    if value.upper() == "PHC":
+        return "Phc"
+    return value.upper()
 
+
+def parse_murmur_locations(value):
+    """Return the normalized locations from the patient record."""
+    value = value.strip()
+    if not value or value.lower() in {"nan", "none", "unknown"}:
+        return []
+
+    locations = [normalize_location(part) for part in value.replace(",", "+").split("+")]
+    return locations
+
+
+def read_patient_annotation(patient_file):
+    """Read the patient and location annotations from one record."""
+    lines = patient_file.read_text().splitlines()
+    annotations = {}
+    for line in lines:
+        if line.startswith("#") and ":" in line:
+            key, value = line[1:].split(":", 1)
+            annotations[key.strip()] = value.strip()
+
+    return lines, annotations["Murmur"], parse_murmur_locations(
+        annotations.get("Murmur locations", "")
+    )
+
+
+def create_indexes():
+    """Create patient and recording indexes from the raw annotation files."""
     patient_files = sorted(DATA_DIR.rglob("*.txt"))
 
     recording_rows = []
     patient_rows = []
-    issues = []
 
     for patient_file in patient_files:
         patient_id = patient_file.stem
-        lines = patient_file.read_text().splitlines()
-
-        # Skip text files that are not patient records.
-        if not lines or not any(
-            line.startswith("#Murmur:") for line in lines
-        ):
+        raw_lines = patient_file.read_text().splitlines()
+        if not raw_lines or not any(line.startswith("#Murmur:") for line in raw_lines):
             continue
-
-        label = next(
-            line.split(":", 1)[1].strip()
-            for line in lines
-            if line.startswith("#Murmur:")
-        )
-
-        if label not in {"Present", "Absent", "Unknown"}:
-            issues.append(f"{patient_file.name}: invalid label '{label}'")
-            continue
+        lines, label, murmur_locations = read_patient_annotation(patient_file)
 
         patient_rows.append({
             "patient_id": patient_id,
-            "murmur_label": label
+            "patient_label": label,
+            "murmur_label": label,
+            "murmur_locations": "+".join(murmur_locations or []),
         })
 
         for line in lines[1:]:
@@ -63,45 +78,32 @@ def create_indexes():
             if audio_name is None:
                 continue
 
+            recording_location = normalize_location(parts[0])
+            if label == "Present" and recording_location not in murmur_locations:
+                recording_label = "Absent"
+            else:
+                recording_label = label
+
             audio_path = patient_file.parent / audio_name
-
-            if not audio_path.exists():
-                issues.append(f"{audio_name}: missing audio file")
-                continue
-
-            try:
-                audio_info = sf.info(audio_path)
-            except Exception as error:
-                issues.append(f"{audio_name}: {error}")
-                continue
+            audio_info = sf.info(audio_path)
 
             recording_rows.append({
                 "patient_id": patient_id,
                 "recording": audio_path.name,
-                "location": parts[0],
+                "location": recording_location,
+                "patient_label": label,
+                "recording_label": recording_label,
+                "training_label": recording_label,
                 "murmur_label": label,
+                "murmur_locations": "+".join(murmur_locations or []),
                 "sample_rate": audio_info.samplerate,
                 "duration_seconds": audio_info.duration,
                 "channels": audio_info.channels,
                 "audio_path": audio_path.relative_to(ROOT).as_posix()
             })
 
-    if issues:
-        for issue in issues:
-            print(issue)
-        raise ValueError("Resolve the issues above before creating indexes.")
-
-    if not recording_rows:
-        raise ValueError("No recordings found. Check the dataset folder.")
-
     recordings = pd.DataFrame(recording_rows)
     patients = pd.DataFrame(patient_rows)
-
-    if not patients["patient_id"].is_unique:
-        raise ValueError("Duplicate patient IDs found.")
-
-    if not recordings["audio_path"].is_unique:
-        raise ValueError("Duplicate recording paths found.")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

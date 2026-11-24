@@ -13,22 +13,18 @@ import librosa
 
 from src.config import SAMPLE_RATE
 
-# Random Forest features
-N_MFCC = 13             # number of MFCC coefficients
-RF_N_FFT = 1024         # same frame settings as extract_mfcc_features()
+N_MFCC = 13
+RF_N_FFT = 1024
 RF_HOP_LENGTH = 256
 
-# CNN log-Mel spectrogram
-N_MELS = 64             # number of Mel frequency bands (image height)
-N_FFT = 512             # FFT size (128 ms at 4 kHz)
-HOP_LENGTH = 128        # step between frames (32 ms at 4 kHz)
-FMIN = 25               # audio is band-passed to 25-800 Hz, so higher
-FMAX = 800              # Mel bands would carry no information
-TOP_DB = 80             # clip the spectrogram 80 dB below its loudest point
+N_MELS = 64
+N_FFT = 512
+HOP_LENGTH = 128
+FMIN = 25
+FMAX = 800
+TOP_DB = 80
 
 
-# Names of the Random Forest features, in the same order as the vector
-# returned by extract_rf_features(). Saved next to the cached features.
 RF_FEATURE_NAMES = (
     [f"mfcc_mean_{i}" for i in range(1, N_MFCC + 1)]
     + [f"mfcc_std_{i}" for i in range(1, N_MFCC + 1)]
@@ -38,14 +34,10 @@ RF_FEATURE_NAMES = (
 )
 
 
-# Build the Random Forest feature vector for one window.
-# Only the real (non-padded) part of the window should be passed in, so the
-# zero padding at the end of a recording does not distort the statistics.
 def extract_rf_features(audio, sample_rate=SAMPLE_RATE):
+    """Return MFCC, delta-MFCC, energy, and zero-crossing features."""
     audio = np.asarray(audio, dtype=np.float32)
 
-    # Delta MFCCs describe how the spectrum changes from frame to frame,
-    # which helps capture the timing of heart sounds and murmurs
     mfccs = librosa.feature.mfcc(
         y=audio, sr=sample_rate, n_mfcc=N_MFCC,
         n_fft=RF_N_FFT, hop_length=RF_HOP_LENGTH
@@ -54,7 +46,6 @@ def extract_rf_features(audio, sample_rate=SAMPLE_RATE):
     deltas = librosa.feature.delta(mfccs)
     delta_stats = np.concatenate([deltas.mean(axis=1), deltas.std(axis=1)])
 
-    # Loudness (RMS energy) and noisiness (zero-crossing rate) over time
     rms = librosa.feature.rms(
         y=audio, frame_length=RF_N_FFT, hop_length=RF_HOP_LENGTH
     )[0]
@@ -66,9 +57,8 @@ def extract_rf_features(audio, sample_rate=SAMPLE_RATE):
     return np.concatenate([mfcc_stats, delta_stats, energy_stats]).astype(np.float32)
 
 
-# Build the log-Mel spectrogram (in decibels) for one full, fixed-length window.
-# A 4 s window (16,000 samples) gives shape (64, 126).
 def extract_log_mel(audio, sample_rate=SAMPLE_RATE):
+    """Return a log-Mel spectrogram for one audio window."""
     mel = librosa.feature.melspectrogram(
         y=np.asarray(audio, dtype=np.float32),
         sr=sample_rate,
@@ -82,9 +72,8 @@ def extract_log_mel(audio, sample_rate=SAMPLE_RATE):
     return log_mel.astype(np.float32)
 
 
-# Settings that change the feature values. Stored with the cache so that
-# old cached features are rebuilt automatically when a setting changes.
 def feature_settings():
+    """Return the settings that identify the extracted features."""
     return {
         "sample_rate": SAMPLE_RATE, "n_mfcc": N_MFCC,
         "rf_n_fft": RF_N_FFT, "rf_hop_length": RF_HOP_LENGTH,

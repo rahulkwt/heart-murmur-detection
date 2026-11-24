@@ -20,7 +20,7 @@ src/
   features/       # MFCC extraction, log-Mel spectrogram extraction
   models/         # Random Forest baseline, CNN model
   evaluation/     # Accuracy, precision, recall, macro-F1, confusion matrix
-reports/          # Final report and figures
+results/          # Generated models, predictions, metrics, and figures
 ```
 
 ## Setup
@@ -59,7 +59,6 @@ python -m src.preprocessing.split_patients
 python -m src.models.data_utils
 python -m src.models.train_rf
 python -m src.models.train_cnn
-python -m src.models.make_figures
 python -m src.evaluation.aggregate_patients
 python -m src.evaluation.evaluate_models
 python -m src.evaluation.plot_confusion_matrices
@@ -80,7 +79,24 @@ compares it with CardioPHON. Run 05 before 06, and rerun 03's ROC section after
 06 to include Logistic Regression. The first transfer run downloads pretrained
 models and can take a while on CPU.
 
-Results go to [outputs/](outputs/README.md); notebook figures go to
-[reports/figures/](reports/figures/). CardioPHON uses a frozen audio encoder
+Results go to [results/](results/README.md), grouped into models, predictions,
+metrics, and figures. CardioPHON uses a frozen audio encoder
 with a new classifier, without demographic fusion or quality filtering;
 see the [official release](https://git.lih.lu/vdespotovic/cardiophon).
+
+## Location-aware experiment
+
+The original outputs and notebooks remain the historical baseline. To prepare
+the revised indexes, run the two preprocessing commands again after placing
+the raw records in `data/raw/training_data/`:
+
+```bash
+python -m src.preprocessing.create_indexes
+python -m src.preprocessing.split_patients
+```
+
+Open `notebooks/07_location_aware_training.ipynb` and run its lightweight
+checks first. It trains one location-aware CNN using recording labels and
+patient-level validation selection. The location-aware model, prediction CSV,
+and test summary are saved under `results/` with the `location_aware_cnn`
+prefix; the revised feature cache is kept separate from the original cache.

@@ -9,6 +9,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data/processed"
 
 
 def split_patients():
+    """Create stratified patient and recording train, validation, and test splits."""
     patients = pd.read_csv(DATA_DIR / "patient_index.csv", dtype={"patient_id": str})
     recordings = pd.read_csv(DATA_DIR / "recording_index.csv", dtype={"patient_id": str})
     if not patients["patient_id"].is_unique:
